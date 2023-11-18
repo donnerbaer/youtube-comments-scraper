@@ -1,0 +1,3 @@
+google-api-python-client==2.108.0
+regex==2023.6.3
+requests==2.30.0
