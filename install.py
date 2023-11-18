@@ -126,34 +126,23 @@ class Install:
         if not new_installation:
             print(f'Do you want to overwrite config.ini?')
             user_input = self.__is_user_input_yes(input())
-        if user_input or new_installation:
+        if user_input or new_installation or not os.path.exists('config.ini'):
             self.__overwrite_config()
-        print()
-
-
-        if os.path.exists('config.ini'):
-            self.__load_config()
-        else:
-            self.__overwrite_config()
+        self.__load_config()
             
-
-        if os.path.exists(self.__config['APP']['DATABASE_PATH'] + self.__config['APP']['DATABASE_PATH'] ):
-            self.__connect_database()
-        else:
-            exit(0)
-
-
         # database
         if not new_installation:
             print(f'Do you want to reset the default database if exists? [yes][y]/[no]')
             user_input = self.__is_user_input_yes(input())
         if user_input or new_installation:
             self.__create_database_file()
+            self.__connect_database()
             self.__create_tables()
+            self.__close_database()
         print()
 
 
-        self.__close_database()
+
 
 
 
