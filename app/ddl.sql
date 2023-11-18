@@ -1,21 +1,17 @@
+/*
+    DATA DEFINITION LANGUAGE
+*/
 
-
-
-CREATE TABLE IF NOT EXISTS content_creator (
-    id INTEGER,
-    person TEXT,
-    about TEXT,
-    PRIMARY KEY(id)
-);
 
 
 CREATE TABLE IF NOT EXISTS yt_channel (
-    channel_id TEXT,
+    id INTEGER,
+    yt_channel_id TEXT,
+    person TEXT,
     channelTitle TEXT,
     last_time_fetched TEXT,
     about TEXT,
-    content_creator_id INTEGER,
-    PRIMARY KEY(channel_id)
+    PRIMARY KEY(id)
 );
 
 
