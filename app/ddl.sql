@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS yt_video (
     title TEXT,
     publishedAt TEXT,
     last_time_fetched TEXT,
-    desciption TEXT,
+    description TEXT,
     channel_id TEXT,
     PRIMARY KEY(id)
 );
