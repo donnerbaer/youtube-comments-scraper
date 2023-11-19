@@ -214,7 +214,6 @@ class App:
         video = video_dict
         query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, desciption, channel_id) 
                     VALUES (?, ?, ?, ?, ?, ?);
-                    
                 '''
         self.__cursor.execute(query, video)
 
@@ -262,7 +261,18 @@ class App:
 
 
 
-    def insert_comment(self, comment: dict) -> None: pass # TODO: implement
+    def insert_comment(self, comment_dict: dict) -> None:
+        """_summary_
+
+        Args:
+            comment_dict (dict): _description_
+        """
+        # TODO: comment_dict to video: key:value handling
+        comment = comment_dict
+        query = '''INSERT INTO yt_comment (id, authorChannelId, authorDisplayName, parentId, publishedAt, updatedAt, textOriginal, likecount, totalReplyCpunt, last_time_fetched, video_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                '''
+        self.__cursor.execute(query, comment)
 
 
 
