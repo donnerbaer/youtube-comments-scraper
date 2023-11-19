@@ -106,15 +106,21 @@ class App:
         Returns:
             list[str]: _description_
         """
+        if self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH'].isdigit():
+            TIME_SINCE_LAST_VIDEO_FETCH = (int)(self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH'])
+        else:
+            TIME_SINCE_LAST_VIDEO_FETCH = 900
+
         query = '''SELECT channel_id
                     FROM yt_channel 
                     WHERE 
-                    strftime('%s', ?) - strftime('%s', last_time_fetched)  > ?
-                    OR last_time_fetched = ""
+                        strftime('%s', ?) - strftime('%s', last_time_fetched) > ?
+                    OR 
+                        last_time_fetched = ""
                 '''
-        result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
+        result = self.__cursor.execute(query, (datetime.now(), TIME_SINCE_LAST_VIDEO_FETCH))
         channels = []
-        for channel in result:
+        for channel in result.fetchall():
             channels.append(channel[0])
         return channels
 
