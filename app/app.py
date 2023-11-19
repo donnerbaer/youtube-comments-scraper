@@ -204,7 +204,19 @@ class App:
 
 
 
-    def insert_video(self, video: dict) -> None: pass # TODO: implement
+    def insert_video(self, video_dict: dict) -> None:
+        """_summary_
+
+        Args:
+            video_dict (dict): _description_
+        """
+        # TODO: video_dict to video: key:value handling
+        video = video_dict
+        query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, desciption, channel_id) 
+                    VALUES (?, ?, ?, ?, ?, ?);
+                    
+                '''
+        self.__cursor.execute(query, video)
 
 
 
