@@ -317,7 +317,21 @@ class App:
                     SET last_time_fetched = ?
                     WHERE channel_id = ?
                 '''
-        self.__cursor.execute(query,(datetime.now(),channel_id ))
+        self.__cursor.execute(query,(datetime.now(), channel_id) )
+
+
+        
+    def update_video_last_time_fetched(self, video_id: str) -> None:
+        """_summary_
+
+        Args:
+            video_id (str): _description_
+        """
+        query = '''UPDATE yt_video
+                    SET last_time_fetched = ?
+                    WHERE id = ?
+                '''
+        self.__cursor.execute(query,(datetime.now(), video_id) )
 
 
 
@@ -453,17 +467,18 @@ class App:
 
                 # process videos
                 video_ids = self.get_videos()
-                print('END')
-                exit(0)            
-                #for video_id in video_ids:
-                #    comments = self.fetch_comments(video_id)
+                for video_id in video_ids:
+                    comments = self.fetch_comments(video_id)
                 #    for comment in comments:
                 #        comment_id = ''
                 #        if not self.is_comment_new(comment_id):
                 #            self.insert_comment(comment)
-                #    self.update_video_last_time_fetched(video_id)
-                #    self.__connection.commit()
-                            
+                    self.update_video_last_time_fetched(video_id)
+                    self.__connection.commit()
+
+                print('END')
+                exit(0)
+
         except KeyboardInterrupt:
             self.__close_database()
             exit(0)
