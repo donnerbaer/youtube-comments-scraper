@@ -161,7 +161,6 @@ class App:
         
 
 
-
     def get_videos(self) -> list[str]: 
         """_summary_
 
@@ -204,6 +203,7 @@ class App:
             response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
 
         return videos
+
 
 
     def request_youtube_channel_videos(self, channel_id: str, nextPageToken: str) -> dict:
@@ -306,6 +306,7 @@ class App:
         return False
 
 
+
     def update_video(self, video: dict) -> None:
         """_summary_
 
@@ -361,7 +362,6 @@ class App:
         except:
             return ''
             
-
 
 
     def get_comment_id_from_fetch(self, comment: dict) -> str: # TODO: 
