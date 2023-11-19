@@ -118,7 +118,6 @@ class App:
         query = '''SELECT channel_id 
                     FROM yt_channel 
                     WHERE channel_id = ?
-                    
                 '''
         
         result = self.__cursor.execute(query, (channel_id,))
@@ -178,13 +177,69 @@ class App:
 
 
     def fetch_videos(self, channel_id: str) -> dict: pass # TODO: implement
-    def is_video_new(self, video_id: str) -> bool: pass # TODO: implement
+
+
+
+    def is_video_new(self, video_id: str) -> bool:
+        """_summary_
+
+        Args:
+            video_id (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+        query = '''SELECT video_id 
+                    FROM yt_video
+                    WHERE video_id = ?
+                '''
+        
+        result = self.__cursor.execute(query, (video_id,))
+        res = result.fetchone()
+        if type(res) == type(None):
+            return True
+        if len(res) == 0:
+            return True
+        return False
+
+
+
     def insert_video(self, video: dict) -> None: pass # TODO: implement
+
+
+
     def update_video(self, video_id: str) -> None: pass # TODO: implement
 
 
+
     def fetch_comments(self, video_id: str) -> dict: pass # TODO: implement
-    def is_comment_new(self, comment_id: str) -> bool: pass # TODO: implement
+
+
+
+    def is_comment_new(self, comment_id: str) -> bool:
+        """_summary_
+
+        Args:
+            comment_id (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+        query = '''SELECT comment_id 
+                    FROM yt_comment
+                    WHERE comment_id = ?
+                '''
+        
+        result = self.__cursor.execute(query, (comment_id,))
+        res = result.fetchone()
+        if type(res) == type(None):
+            return True
+        if len(res) == 0:
+            return True
+        return False
+
+
+
     def insert_comment(self, comment: dict) -> None: pass # TODO: implement
 
 
