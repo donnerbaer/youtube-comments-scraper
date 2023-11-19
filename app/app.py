@@ -92,7 +92,6 @@ class App:
                     WHERE 
                     strftime('%s', ?) - strftime('%s', last_time_fetched)  > ?
                     OR last_time_fetched = ""
-                    
                 '''
         result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
         return result
@@ -119,7 +118,7 @@ class App:
         res = result.fetchone()
         if type(res) == type(None):
             return True
-        if len(result.fetchone()) == 0:
+        if len(res.fetchone()) == 0:
             return True
         return False
 
