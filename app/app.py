@@ -102,7 +102,10 @@ class App:
                     OR last_time_fetched = ""
                 '''
         result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
-        return result
+        channels = []
+        for channel in result:
+            channels.append(channel[0])
+        return channels
 
 
 
@@ -176,7 +179,50 @@ class App:
 
 
 
-    def fetch_videos(self, channel_id: str) -> dict: pass # TODO: implement
+    def fetch_videos(self, channel_id: str) -> list:
+        """_summary_
+
+        Args:
+            channel_id (str): _description_
+
+        Returns:
+            list: _description_
+        """
+        videos = []
+        response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken='')
+        while True:
+            for video in response['items']:
+                try:
+                    videos.append(video)
+                except:
+                    continue
+
+            try:                                                                        
+                nextPageToken = response['nextPageToken']      
+            except KeyError:                                                   
+                break 
+            response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
+
+        return videos
+
+
+    def request_youtube_channel_videos(self, channel_id: str, nextPageToken: str) -> dict:
+        """_summary_
+
+        Args:
+            channel_id (str): _description_
+            nextPageToken (str): _description_
+
+        Returns:
+            dict: _description_
+        """
+        request = self.__youtube.activities().list(
+            part = "snippet,contentDetails",
+            channelId = channel_id,
+            maxResults = 500,
+            pageToken = nextPageToken
+        )
+        return request.execute()
 
 
 
@@ -189,9 +235,9 @@ class App:
         Returns:
             bool: _description_
         """
-        query = '''SELECT video_id 
+        query = '''SELECT id 
                     FROM yt_video
-                    WHERE video_id = ?
+                    WHERE id = ?
                 '''
         
         result = self.__cursor.execute(query, (video_id,))
@@ -204,32 +250,32 @@ class App:
 
 
 
-    def insert_video(self, video_dict: dict) -> None:
+    def insert_video(self, video: dict) -> None:
         """_summary_
 
         Args:
             video_dict (dict): _description_
         """
-        # TODO: video_dict to video: key:value handling
-        video = video_dict
-        query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, desciption, channel_id) 
+        video_id = self.get_video_id_from_fetch(video)
+        snippet = video['snippet']
+        query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, description, channel_id) 
                     VALUES (?, ?, ?, ?, ?, ?);
                 '''
-        self.__cursor.execute(query, video)
+        self.__cursor.execute(query, (video_id, snippet['title'], snippet['publishedAt'], datetime.now(), snippet['description'], snippet['channelId']))
 
 
 
-    def update_video(self, video_id: str) -> None:
+    def update_channel_last_time_fetched(self, channel_id: str) -> None:
         """_summary_
 
         Args:
             channel_id (str): _description_
         """
-        query = '''UPDATE yt_video
+        query = '''UPDATE yt_channel
                     SET last_time_fetched = ?
                     WHERE channel_id = ?
                 '''
-        self.__cursor.execute(query,(video_id, datetime.now()))
+        self.__cursor.execute(query,(datetime.now(),channel_id ))
 
 
 
@@ -260,6 +306,26 @@ class App:
         return False
 
 
+    def update_video(self, video: dict) -> None:
+        """_summary_
+
+        Args:
+            video (dict): _description_
+        """
+        video_id = self.get_video_id_from_fetch(video)
+        snippet = video['snippet']
+        query = '''UPDATE yt_video
+                    SET
+                        title = ?,
+                        publishedAt = ?,
+                        last_time_fetched = ?,
+                        description = ?,
+                        channel_id = ?
+                    WHERE id = ?
+        '''
+        self.__cursor.execute(query, ( snippet['title'], snippet['publishedAt'], datetime.now(), snippet['description'], snippet['channelId'], video_id), ) 
+
+
 
     def insert_comment(self, comment_dict: dict) -> None:
         """_summary_
@@ -276,38 +342,81 @@ class App:
 
 
 
+    def get_video_id_from_fetch(self, video: dict) -> str:
+        """_summary_
+
+        Args:
+            video (dict): _description_
+
+        Returns:
+            str: _description_
+        """
+        try:
+            return video['contentDetails']['upload']['videoId']
+        except:
+            pass 
+
+        try:
+            return video['contentDetails']['playlistItem']['resourceId']['videoId']
+        except:
+            return ''
+            
+
+
+
+    def get_comment_id_from_fetch(self, comment: dict) -> str: # TODO: 
+        """_summary_
+
+        Args:
+            comment (dict): _description_
+
+        Returns:
+            str: _description_
+        """
+        pass
+
+
+
     def main(self):
         """_summary_
         """
         self.load_channels()
-        return 0
+        last_time_load_channels = datetime.now()
+
         try:
             while True:
-                # TODO: if datetime.now() - last_time_load_channels > timedelta(time=?): self.load_channels()
+                if datetime.now() - last_time_load_channels > timedelta(minutes=5): 
+                    self.load_channels()
 
                 # process channels
                 channel_ids = self.get_channels()
                 for channel_id in channel_ids:
                     videos = self.fetch_videos(channel_id)
                     for video in videos:
-                        video_id = ''
-                        if not self.is_video_new(video_id):
+                        video_id = self.get_video_id_from_fetch(video)
+                        if not type(video_id) == type(str) and not len(video_id) > 0:
+                            continue
+                        if self.is_video_new(video_id):
                             self.insert_video(video)
+                            #print('new video added')
                         else:
-                            self.update_video(video_id)
-                    self.update_channel(channel_id)
+                            self.update_video(video)
+                            #print('video updated: {} : {}'.format(video_id, video['snippet']['title']))
+                    self.update_channel_last_time_fetched(channel_id)
                     self.__connection.commit()
-                            
+                
+                print('END')
+                exit(0)            
                 # process videos
-                video_ids = self.get_videos()
-                for video_id in video_ids:
-                    comments = self.fetch_comments(video_id)
-                    for comment in comments:
-                        comment_id = ''
-                        if not self.is_comment_new(comment_id):
-                            self.insert_comment(comment)
-                    self.update_video(video_id)
-                    self.__connection.commit()
+                #video_ids = self.get_videos()
+                #for video_id in video_ids:
+                #    comments = self.fetch_comments(video_id)
+                #    for comment in comments:
+                #        comment_id = ''
+                #        if not self.is_comment_new(comment_id):
+                #            self.insert_comment(comment)
+                #    self.update_video_last_time_fetched(video_id)
+                #    self.__connection.commit()
                             
         except KeyboardInterrupt:
             self.__close_database()
