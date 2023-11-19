@@ -63,20 +63,36 @@ class Install:
         print(f'Database file created')
 
 
+
+    def __create_channels_file(self) -> None:
+        """_summary_
+        """
+        try:
+            if not os.path.exists(self.__config['DATA']['IMPORT_CHANNELS_PATH']): 
+                os.makedirs(self.__config['DATA']['IMPORT_CHANNELS_PATH'])
+        except:
+            print(f'creating directory failed')
+
+        file_template = open('template/channels.csv','r')
+        file = open(self.__config['DATA']['IMPORT_CHANNELS_PATH'] + 'channels.csv', 'w')
+        file.write(file_template.read())
+        file.close()
+        file_template.close()
+        print(f'default channels.csv created')
+
+
     
     def __create_tables(self) -> None:
         """_summary_
         """
-        #try:
-        ddl = open(self.__config['SETUP']['DATABASE_DDL'],'r')
-        self.__cursor.executescript(ddl.read())
+        try:
+            ddl = open(self.__config['SETUP']['DATABASE_DDL'],'r')
+            self.__cursor.executescript(ddl.read())
 
-        ddl.close()
-        print(f'Tables created')
-        #except:
-            #print(f'ERROR: tables not created')
-
-        pass
+            ddl.close()
+            print(f'Tables created')
+        except:
+            print(f'ERROR: tables not created')
 
 
 
@@ -115,12 +131,11 @@ class Install:
 
         # hole installation
         if new_installation:
-            print(f'Are you shure? [yes][y]/[no]')
+            print('Are you shure? [yes][y]/[no]')
             new_installation = self.__is_user_input_yes(input())
             print()
         if new_installation:
-            print(f'New installation is executed')
-            print()
+            print('New installation is executed\n')
 
         # config file
         if not new_installation:
@@ -141,6 +156,12 @@ class Install:
             self.__close_database()
         print()
 
+        # channels.csv
+        if not new_installation:
+            print(f'Do you want to reset the default channels.csv if exists? [yes][y]/[no]')
+            user_input = self.__is_user_input_yes(input())
+        if user_input or new_installation:
+            self.__create_channels_file()
 
 
 
