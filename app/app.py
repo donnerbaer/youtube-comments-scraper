@@ -118,7 +118,7 @@ class App:
         res = result.fetchone()
         if type(res) == type(None):
             return True
-        if len(res.fetchone()) == 0:
+        if len(res) == 0:
             return True
         return False
 
