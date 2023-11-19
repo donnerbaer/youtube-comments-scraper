@@ -208,7 +208,17 @@ class App:
 
 
 
-    def update_video(self, video_id: str) -> None: pass # TODO: implement
+    def update_video(self, video_id: str) -> None:
+        """_summary_
+
+        Args:
+            channel_id (str): _description_
+        """
+        query = '''UPDATE yt_video
+                    SET last_time_fetched = ?
+                    WHERE channel_id = ?
+                '''
+        self.__cursor.execute(query,(video_id, datetime.now()))
 
 
 
