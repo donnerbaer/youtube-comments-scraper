@@ -81,6 +81,17 @@ class App:
 
 
 
+    def load_videos(self) -> None:
+        pass
+
+
+
+    def process_video_files(self, file:object) -> None:
+        pass
+
+
+
+
     def __close_database(self) -> None:
         """ close the cursor and the connection of the database
         """
@@ -381,12 +392,14 @@ class App:
         """_summary_
         """
         self.load_channels()
-        last_time_load_channels = datetime.now()
+        self.load_videos()
+        last_time_load_csv = datetime.now()
 
         try:
             while True:
-                if datetime.now() - last_time_load_channels > timedelta(minutes=5): 
+                if datetime.now() - last_time_load_csv > timedelta(minutes=5): 
                     self.load_channels()
+                    self.load_videos()
 
                 # process channels
                 channel_ids = self.get_channels()
