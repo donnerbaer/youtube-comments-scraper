@@ -56,20 +56,28 @@ class App:
         files = self.get_all_channel_files()
         for file_name in files:
             file = open(self.__config['DATA']['IMPORT_CHANNELS_PATH'] + file_name,'r')
-            file.readline() # header
-
-            for line in file.readlines():
-                line = line.replace('\n','')
-                data = line.split(',')
-
-                if data[0] == '':
-                    continue
-
-                if self.is_channel_new(data[0]):
-                    self.insert_channel(data)
-
+            self.process_channel_files(file)
             self.__connection.commit()
             file.close()
+
+
+
+    def process_channel_files(self, file:object) -> None:
+        """_summary_
+
+        Args:
+            file (str): _description_
+        """
+        file.readline() # header
+        for line in file.readlines():
+            line = line.replace('\n','')
+            data = line.split(',')
+
+            if data[0] == '':
+                continue
+
+            if self.is_channel_new(data[0]):
+                self.insert_channel(data)
 
 
 
@@ -107,7 +115,6 @@ class App:
         Returns:
             bool: _description_
         """
-        print(channel_id)
         query = '''SELECT channel_id 
                     FROM yt_channel 
                     WHERE channel_id = ?
@@ -153,7 +160,23 @@ class App:
 
 
 
-    def get_videos(self) -> list[str]: pass # TODO: implement
+    def get_videos(self) -> list[str]: 
+        """_summary_
+
+        Returns:
+            list[str]: _description_
+        """
+        query = '''SELECT channel_id
+                    FROM yt_channel 
+                    WHERE 
+                    strftime('%s', ?) - strftime('%s', last_time_fetched)  > ?
+                    OR last_time_fetched = ""
+                '''
+        result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
+        return result
+
+
+
     def fetch_videos(self, channel_id: str) -> dict: pass # TODO: implement
     def is_video_new(self, video_id: str) -> bool: pass # TODO: implement
     def insert_video(self, video: dict) -> None: pass # TODO: implement
