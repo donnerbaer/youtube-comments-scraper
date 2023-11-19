@@ -184,14 +184,38 @@ class App:
         Returns:
             list[str]: _description_
         """
-        query = '''SELECT channel_id
-                    FROM yt_channel 
-                    WHERE 
-                    strftime('%s', ?) - strftime('%s', last_time_fetched)  > ?
-                    OR last_time_fetched = ""
-                '''
-        result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
-        return result
+        # TODO: 
+        # oldest newest diff(last_fetch)
+        deltas = [
+            [timedelta(hours=12), timedelta(hours=0), 5*60],
+            [timedelta(days=1), timedelta(hours=12), 10*60],
+            [timedelta(days=3), timedelta(days=1), 30*60],
+            [timedelta(days=7), timedelta(days=3), 4*60*60],
+            [timedelta(days=30), timedelta(days=7), 1*24*60*60],
+            [timedelta(days=10*365), timedelta(days=30), 30*24*60*60]
+        ]
+
+        query = '''SELECT id
+            FROM yt_video 
+            WHERE 
+                (
+                    (publishedAt BETWEEN ? AND ?)
+                    AND
+                    strftime('%s', ?) - strftime('%s', last_time_fetched) > ?
+                )	
+                OR 
+                    last_time_fetched = ""
+        '''
+        videos = set()
+        for delta in deltas:
+            print(delta)
+            now = datetime.now()
+            result = self.__cursor.execute(query, (now - delta[0], now - delta[1], now, delta[2]))
+            
+            for video in result.fetchall():
+                videos.add(video[0])
+        print(list[videos])
+        return list[videos]
 
 
 
@@ -278,7 +302,8 @@ class App:
         query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, description, channel_id) 
                     VALUES (?, ?, ?, ?, ?, ?);
                 '''
-        self.__cursor.execute(query, (video_id, snippet['title'], snippet['publishedAt'], datetime.now(), snippet['description'], snippet['channelId']))
+        publishedAt = snippet['publishedAt'][:19] + '.000000'
+        self.__cursor.execute(query, (video_id, snippet['title'], publishedAt, datetime.now(), snippet['description'], snippet['channelId']))
 
 
 
@@ -324,7 +349,7 @@ class App:
 
 
 
-    def update_video(self, video: dict) -> None:
+    def update_video(self, video: dict) -> None: # TODO: 
         """_summary_
 
         Args:
@@ -341,7 +366,8 @@ class App:
                         channel_id = ?
                     WHERE id = ?
         '''
-        self.__cursor.execute(query, ( snippet['title'], snippet['publishedAt'], datetime.now(), snippet['description'], snippet['channelId'], video_id), ) 
+        publishedAt = snippet['publishedAt'][:19] + '.000000'
+        self.__cursor.execute(query, ( snippet['title'], publishedAt, datetime.now(), snippet['description'], snippet['channelId'], video_id), ) 
 
 
 
@@ -424,10 +450,11 @@ class App:
                     self.update_channel_last_time_fetched(channel_id)
                     self.__connection.commit()
                 
+
+                # process videos
+                video_ids = self.get_videos()
                 print('END')
                 exit(0)            
-                # process videos
-                #video_ids = self.get_videos()
                 #for video_id in video_ids:
                 #    comments = self.fetch_comments(video_id)
                 #    for comment in comments:
