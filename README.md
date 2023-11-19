@@ -28,6 +28,9 @@ check versions: run `python version.py`
 
 2. put your youtube api token in `config.ini` as API_SECRET
 
-3. run application
+3. fill the `/data/channels.csv`, it is possible to have multiple `.csv`-files, all will be used
+<!-- TODO: is it possible to add some during runtime? -->
+
+4. run application
 
     python run.py
