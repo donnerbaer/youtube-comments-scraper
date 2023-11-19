@@ -62,20 +62,11 @@ class App:
                 line = line.replace('\n','')
                 data = line.split(',')
 
-                # TODO: 
-                # db_response = 'select video_id from yt_video where id = ?'
-                # if len(db_response) > 0:
-                #   self.update_channel(yt_channel_id)
-                # else:
-                #   self.insert_channel(channel) # channel : list[str]
-
-
-                # ignore channels without channel_id in .csv-files
                 if data[0] == '':
                     continue
 
-                insert_yt_channel = "INSERT INTO yt_channel (channel_id, person, channelTitle, last_time_fetched, about) VALUES (?,?,?,?,?)"
-                self.__cursor.execute(insert_yt_channel,data)
+                if self.is_channel_new(data[0]):
+                    self.insert_channel(data)
 
             self.__connection.commit()
             file.close()
@@ -90,10 +81,77 @@ class App:
 
 
 
-    def get_channels(self) -> list[str]: pass # TODO: implement
-    def is_channel_new(self, channel_id: str) -> bool: pass # TODO: implement
-    def insert_video(self, channel: dict) -> None: pass # TODO: implement
-    def update_channel(self, channel_id: str) -> None: pass # TODO: implement
+    def get_channels(self) -> list[str]: 
+        """_summary_
+
+        Returns:
+            list[str]: _description_
+        """
+        query = '''SELECT channel_id
+                    FROM yt_channel 
+                    WHERE 
+                    strftime('%s', ?) - strftime('%s', last_time_fetched)  > ?
+                    OR last_time_fetched = ""
+                    
+                '''
+        result = self.__cursor.execute(query, (datetime.now(), self.__config['CHANNEL']['TIME_SINCE_LAST_VIDEO_FETCH']))
+        return result
+
+
+
+    def is_channel_new(self, channel_id: str) -> bool: 
+        """_summary_
+
+        Args:
+            channel_id (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+        print(channel_id)
+        query = '''SELECT channel_id 
+                    FROM yt_channel 
+                    WHERE channel_id = ?
+                    
+                '''
+        
+        result = self.__cursor.execute(query, (channel_id,))
+        res = result.fetchone()
+        if type(res) == type(None):
+            return True
+        if len(result.fetchone()) == 0:
+            return True
+        return False
+
+
+
+    def insert_channel(self, channel: dict|list) -> None: 
+        """_summary_
+
+        Args:
+            channel (dict | list): _description_
+        """
+        query = '''INSERT INTO yt_channel (channel_id, person, channelTitle, last_time_fetched, about) 
+                    VALUES (?, ?, ?, ?, ?);
+                    
+                '''
+        self.__cursor.execute(query, channel)
+
+
+
+    def update_channel(self, channel_id: str) -> None:
+        """_summary_
+
+        Args:
+            channel_id (str): _description_
+        """
+        query = '''UPDATE yt_channel 
+                    SET last_time_fetched = ?
+                    WHERE channel_id = ?
+                '''
+        self.__cursor.execute(query,(channel_id, datetime.now()))
+        
+
 
 
     def get_videos(self) -> list[str]: pass # TODO: implement
@@ -113,7 +171,7 @@ class App:
         """_summary_
         """
         self.load_channels()
-        
+        return 0
         try:
             while True:
                 # TODO: if datetime.now() - last_time_load_channels > timedelta(time=?): self.load_channels()
