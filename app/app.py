@@ -228,17 +228,20 @@ class App:
         videos = []
         response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken='')
         while True:
-            for video in response['items']:
+            if 'item' in response:
+                for video in response['items']:
+                    try:
+                        videos.append(video)
+                    except:
+                        continue
+
                 try:
-                    videos.append(video)
-                except:
-                    continue
+                    nextPageToken = response['nextPageToken']
+                    response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
 
-            try:
-                nextPageToken = response['nextPageToken']
-                response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
-
-            except KeyError:
+                except KeyError:
+                    break
+            else:
                 break
 
         return videos
@@ -261,7 +264,10 @@ class App:
             maxResults = 500,
             pageToken = nextPageToken
         )
-        return request.execute()
+        try:
+            return request.execute()
+        except:
+            return {}
 
 
 
@@ -348,6 +354,7 @@ class App:
         except:
             # if e.g. comments are disabled
             print('{} error video disabled comments'.format(datetime.now()))
+            self.update_video_last_time_fetched(video_id)
             return comments
         
         while True:
@@ -360,6 +367,8 @@ class App:
             try:                                                                        
                 nextPageToken = response['nextPageToken']
                 response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
+                if 'error' in response:
+                    break
             except KeyError:                                                   
                 break 
 
@@ -606,11 +615,13 @@ class App:
                 if datetime.now() - last_time_load_csv > timedelta(minutes=5): 
                     self.load_channels()
                     self.load_videos()
+                    last_time_load_csv = datetime.now()
                     print('{} csv loaded'.format(datetime.now()))
 
                 # process channels
                 channel_ids = self.get_channels()
                 for channel_id in channel_ids:
+                    print('{} process channel: {}'.format(datetime.now(), channel_id))
                     videos = self.fetch_videos(channel_id)
                     for video in videos:
                         video_id = self.get_video_id_from_fetch(video)
@@ -623,11 +634,14 @@ class App:
                             self.update_video(video)
                     self.update_channel_last_time_fetched(channel_id)
                     self.__connection.commit()
+                    if datetime.now() - last_time_load_csv > timedelta(minutes=15):
+                        break
                 
 
                 # process videos
                 video_ids = self.get_videos()
                 for video_id in video_ids:
+                    print('{} process video: {}'.format(datetime.now(), video_id))
                     comments = self.fetch_comments(video_id)
                     if 'error' in comments:
                         print('no comments allowed')
