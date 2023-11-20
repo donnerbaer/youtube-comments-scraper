@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS yt_comment (
     updatedAt TEXT,
     textOriginal INTEGER,
     likecount INTEGER,
-    totalReplyCpunt TEXT,
+    totalReplyCount TEXT,
     last_time_fetched TEXT,
     video_id TEXT,
     PRIMARY KEY(id)
