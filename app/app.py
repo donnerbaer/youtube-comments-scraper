@@ -81,12 +81,12 @@ class App:
 
 
 
-    def load_videos(self) -> None:
+    def load_videos(self) -> None:  # TODO:
         pass
 
 
 
-    def process_video_files(self, file:object) -> None:
+    def process_video_files(self, file:object) -> None:  # TODO:
         pass
 
 
@@ -178,13 +178,12 @@ class App:
         
 
 
-    def get_videos(self) -> list[str]: 
+    def get_videos(self) -> set[str]: 
         """_summary_
 
         Returns:
             list[str]: _description_
         """
-        # TODO: 
         # oldest newest diff(last_fetch)
         deltas = [
             [timedelta(hours=12), timedelta(hours=0), 5*60],
@@ -208,14 +207,12 @@ class App:
         '''
         videos = set()
         for delta in deltas:
-            print(delta)
             now = datetime.now()
             result = self.__cursor.execute(query, (now - delta[0], now - delta[1], now, delta[2]))
             
             for video in result.fetchall():
                 videos.add(video[0])
-        print(list[videos])
-        return list[videos]
+        return videos
 
 
 
@@ -237,11 +234,12 @@ class App:
                 except:
                     continue
 
-            try:                                                                        
-                nextPageToken = response['nextPageToken']      
-            except KeyError:                                                   
-                break 
-            response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
+            try:
+                nextPageToken = response['nextPageToken']
+                response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
+
+            except KeyError:
+                break
 
         return videos
 
@@ -303,7 +301,7 @@ class App:
                     VALUES (?, ?, ?, ?, ?, ?);
                 '''
         publishedAt = snippet['publishedAt'][:19] + '.000000'
-        self.__cursor.execute(query, (video_id, snippet['title'], publishedAt, datetime.now(), snippet['description'], snippet['channelId']))
+        self.__cursor.execute(query, (video_id, snippet['title'], publishedAt, '', snippet['description'], snippet['channelId']))
 
 
 
@@ -335,7 +333,58 @@ class App:
 
 
 
-    def fetch_comments(self, video_id: str) -> dict: pass # TODO: implement
+    def fetch_comments(self, video_id: str) -> list:
+        """_summary_
+
+        Args:
+            video_id (str): _description_
+
+        Returns:
+            list: _description_
+        """
+        comments = []
+        try:
+            response = self.request_youtube_video_comment(video_id=video_id, nextPageToken='')
+        except:
+            # if e.g. comments are disabled
+            print('{} error video disabled comments'.format(datetime.now()))
+            return comments
+        
+        while True:
+            for comment in response['items']:
+                try:
+                    comments.append(comment)
+                except:
+                    continue
+
+            try:                                                                        
+                nextPageToken = response['nextPageToken']
+                response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
+            except KeyError:                                                   
+                break 
+
+        return comments
+
+
+
+    def request_youtube_video_comment(self, video_id:str, nextPageToken:str) -> dict:
+        """_summary_
+
+        Args:
+            video_id (str): _description_
+            nextPageToken (str): _description_
+
+        Returns:
+            dict: _description_
+        """
+        request = self.__youtube.commentThreads().list(
+            part = "snippet,replies",
+            videoId = video_id,
+            maxResults = 500,
+            pageToken = nextPageToken
+        )
+        return request.execute()
+
 
 
 
@@ -348,9 +397,9 @@ class App:
         Returns:
             bool: _description_
         """
-        query = '''SELECT comment_id 
+        query = '''SELECT id 
                     FROM yt_comment
-                    WHERE comment_id = ?
+                    WHERE id = ?
                 '''
         
         result = self.__cursor.execute(query, (comment_id,))
@@ -363,7 +412,7 @@ class App:
 
 
 
-    def update_video(self, video: dict) -> None: # TODO: 
+    def update_video(self, video: dict) -> None:
         """_summary_
 
         Args:
@@ -375,28 +424,75 @@ class App:
                     SET
                         title = ?,
                         publishedAt = ?,
-                        last_time_fetched = ?,
                         description = ?,
                         channel_id = ?
                     WHERE id = ?
         '''
         publishedAt = snippet['publishedAt'][:19] + '.000000'
-        self.__cursor.execute(query, ( snippet['title'], publishedAt, datetime.now(), snippet['description'], snippet['channelId'], video_id), ) 
+        self.__cursor.execute(query, ( snippet['title'], publishedAt, snippet['description'], snippet['channelId'], video_id), ) 
 
 
 
-    def insert_comment(self, comment_dict: dict) -> None:
+    def insert_comment(self, comment: dict) -> None:
         """_summary_
 
         Args:
-            comment_dict (dict): _description_
+            comment (dict): _description_
         """
-        # TODO: comment_dict to video: key:value handling
-        comment = comment_dict
-        query = '''INSERT INTO yt_comment (id, authorChannelId, authorDisplayName, parentId, publishedAt, updatedAt, textOriginal, likecount, totalReplyCpunt, last_time_fetched, video_id) 
+        if 'youtube#commentThread' in comment['kind']:
+            snippet = comment['snippet']['topLevelComment']['snippet']
+            id = comment['snippet']['topLevelComment']['id']
+        else:
+            snippet = comment['snippet']
+            id = comment['id']
+
+        publishedAt = snippet['publishedAt'][:19] + '.000000'
+        updatedAt = snippet['updatedAt'][:19] + '.000000'
+        if 'totalReplyCount' not in snippet:
+            totalReplyCount = 0
+        else:
+            totalReplyCount = snippet['totalReplyCount']
+
+        if 'parentId' not in snippet:
+            parentId = ''
+        else:
+            parentId = snippet['parentId']
+        
+
+        try:
+            authorChannelId = snippet['authorChannelId']['value']
+        except:
+            authorChannelId = ''
+
+        attributes = [id, 
+                      authorChannelId, 
+                      snippet['authorDisplayName'], 
+                      parentId, 
+                      publishedAt, 
+                      updatedAt, 
+                      snippet['textOriginal'], 
+                      snippet['likeCount'], 
+                      totalReplyCount, 
+                      datetime.now(), 
+                      snippet['videoId']
+                      ]
+        
+        query = '''INSERT INTO yt_comment (
+                    id, 
+                    authorChannelId, 
+                    authorDisplayName, 
+                    parentId, 
+                    publishedAt, 
+                    updatedAt, 
+                    textOriginal, 
+                    likecount, 
+                    totalReplyCount, 
+                    last_time_fetched, 
+                    video_id
+                    ) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 '''
-        self.__cursor.execute(query, comment)
+        self.__cursor.execute(query, attributes)
 
 
 
@@ -421,16 +517,80 @@ class App:
             
 
 
-    def get_comment_id_from_fetch(self, comment: dict) -> str: # TODO: 
+    def get_comment_id_from_fetch(self, comment: dict) -> str:
         """_summary_
 
         Args:
-            comment (dict): _description_
+            video (dict): _description_
 
         Returns:
             str: _description_
         """
-        pass
+        try:
+            return comment['topLevelComment']['id']
+        except:
+            pass 
+
+        try:
+            return comment['id']
+        except:
+            return ''
+
+
+
+    def update_comment(self, comment) -> None:
+        """_summary_
+
+        Args:
+            comment (_type_): _description_
+        """
+        #comment_id = self.get_comment_id_from_fetch(comment)
+        if 'youtube#commentThread' in comment['kind']:
+            snippet = comment['snippet']['topLevelComment']['snippet']
+            id = comment['snippet']['topLevelComment']['id']
+        else:
+            snippet = comment['snippet']
+            id = comment['id']
+
+        query = '''UPDATE yt_comment
+                    SET
+                        authorChannelId = ?,
+                        authorDisplayName = ?,
+                        parentId = ?,
+                        publishedAt = ?,
+                        updatedAt = ?,
+                        textOriginal = ?,
+                        likeCount = ?,
+                        totalReplyCount = ?,
+                        last_time_fetched = ?,
+                        video_id = ?
+                    WHERE id = ?
+        '''
+        publishedAt = snippet['publishedAt'][:19] + '.000000'
+        updatedAt = snippet['updatedAt'][:19] + '.000000'
+        if 'totalReplyCount' not in snippet:
+            totalReplyCount = 0
+        else:
+            totalReplyCount = snippet['totalReplyCount']
+
+        if 'parentId' not in snippet:
+            parentId = ''
+        else:
+            parentId = snippet['parentId']
+
+        self.__cursor.execute(query, ( snippet['authorChannelId']['value'], 
+                                        snippet['authorDisplayName'], 
+                                        parentId, 
+                                        publishedAt, 
+                                        updatedAt, 
+                                        snippet['textOriginal'], 
+                                        snippet['likeCount'], 
+                                        totalReplyCount,
+                                        datetime.now(), 
+                                        snippet['videoId'], 
+                                        id
+                                      ) 
+                            )
 
 
 
@@ -446,6 +606,7 @@ class App:
                 if datetime.now() - last_time_load_csv > timedelta(minutes=5): 
                     self.load_channels()
                     self.load_videos()
+                    print('{} csv loaded'.format(datetime.now()))
 
                 # process channels
                 channel_ids = self.get_channels()
@@ -457,10 +618,9 @@ class App:
                             continue
                         if self.is_video_new(video_id):
                             self.insert_video(video)
-                            #print('new video added')
+                            print('{} new video added'.format(datetime.now()))
                         else:
                             self.update_video(video)
-                            #print('video updated: {} : {}'.format(video_id, video['snippet']['title']))
                     self.update_channel_last_time_fetched(channel_id)
                     self.__connection.commit()
                 
@@ -469,15 +629,32 @@ class App:
                 video_ids = self.get_videos()
                 for video_id in video_ids:
                     comments = self.fetch_comments(video_id)
-                #    for comment in comments:
-                #        comment_id = ''
-                #        if not self.is_comment_new(comment_id):
-                #            self.insert_comment(comment)
+                    if 'error' in comments:
+                        print('no comments allowed')
+                        comments = []
+                        self.update_video_last_time_fetched(video_id)
+                        self.__connection.commit()
+
+                    for comment in comments:
+                        
+                        comment_id = self.get_comment_id_from_fetch(comment)
+                        if self.is_comment_new(comment_id):
+                            self.insert_comment(comment)
+                        else:
+                            self.update_comment(comment)
+
+                        if 'replies' in comment:
+                            for reply in comment['replies']['comments']:
+                                reply_id = self.get_comment_id_from_fetch(comment)
+                                if self.is_comment_new(reply_id):
+                                    self.insert_comment(reply)
+                                else:
+                                    self.update_comment(reply)  
+
                     self.update_video_last_time_fetched(video_id)
                     self.__connection.commit()
-
-                print('END')
-                exit(0)
+                    if datetime.now() - last_time_load_csv > timedelta(minutes=15):
+                        break
 
         except KeyboardInterrupt:
             self.__close_database()
