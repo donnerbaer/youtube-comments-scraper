@@ -351,6 +351,8 @@ class App:
         comments = []
         try:
             response = self.request_youtube_video_comment(video_id=video_id, nextPageToken='')
+        except googleapiclient.errors.HttpError:
+            print('googleapiclient.errors.HttpError')
         except:
             # if e.g. comments are disabled
             print('{} error video disabled comments'.format(datetime.now()))
@@ -367,8 +369,6 @@ class App:
             try:                                                                        
                 nextPageToken = response['nextPageToken']
                 response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
-                if 'error' in response:
-                    break
             except KeyError:                                                   
                 break 
 
@@ -393,7 +393,6 @@ class App:
             pageToken = nextPageToken
         )
         return request.execute()
-
 
 
 
@@ -560,7 +559,7 @@ class App:
         else:
             snippet = comment['snippet']
             id = comment['id']
-
+            
         query = '''UPDATE yt_comment
                     SET
                         authorChannelId = ?,
@@ -582,9 +581,8 @@ class App:
         else:
             totalReplyCount = snippet['totalReplyCount']
 
-        if 'parentId' not in snippet:
-            parentId = ''
-        else:
+        parentId = ''
+        if 'parentId' in snippet:
             parentId = snippet['parentId']
 
         self.__cursor.execute(query, ( snippet['authorChannelId']['value'], 
