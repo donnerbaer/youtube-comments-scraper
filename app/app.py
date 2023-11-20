@@ -349,17 +349,20 @@ class App:
             list: _description_
         """
         comments = []
+        
         try:
             response = self.request_youtube_video_comment(video_id=video_id, nextPageToken='')
         except googleapiclient.errors.HttpError:
-            print('googleapiclient.errors.HttpError')
+            print('{} error request_youtube_video_comment @video={}'.format(datetime.now(), video_id))
+            return comments
         except:
             # if e.g. comments are disabled
-            print('{} error video disabled comments'.format(datetime.now()))
+            print('{} error fetching comments @video={}'.format(datetime.now(), video_id))
             self.update_video_last_time_fetched(video_id)
             return comments
         
         while True:
+            
             for comment in response['items']:
                 try:
                     comments.append(comment)
@@ -368,10 +371,16 @@ class App:
 
             try:                                                                        
                 nextPageToken = response['nextPageToken']
-                response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
             except KeyError:                                                   
                 break 
-
+            
+            try:
+                response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
+            except googleapiclient.errors.HttpError:
+                print('{} error request_youtube_video_comment @video={}'.format(datetime.now(), video_id))
+                self.update_video_last_time_fetched(video_id)
+                return comments
+            
         return comments
 
 
@@ -641,13 +650,14 @@ class App:
                 for video_id in video_ids:
                     print('{} process video: {}'.format(datetime.now(), video_id))
                     comments = self.fetch_comments(video_id)
-                    if 'error' in comments:
-                        print('no comments allowed')
-                        comments = []
-                        self.update_video_last_time_fetched(video_id)
-                        self.__connection.commit()
+                    
 
                     for comment in comments:
+                        if 'error' in comments:
+                            print('no comments allowed')
+                            comments = []
+                            self.update_video_last_time_fetched(video_id)
+                            self.__connection.commit()
                         
                         comment_id = self.get_comment_id_from_fetch(comment)
                         if self.is_comment_new(comment_id):
