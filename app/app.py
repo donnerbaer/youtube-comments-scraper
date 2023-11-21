@@ -14,6 +14,7 @@ class App:
     """
 
     scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
+    __number_of_api_requests_left = 10000
 
     def __init__(self, config: configparser.ConfigParser) -> None:
         """_summary_
@@ -186,11 +187,9 @@ class App:
         """
         # oldest newest diff(last_fetch)
         deltas = [
-            [timedelta(hours=12), timedelta(hours=0), 5*60],
-            [timedelta(days=1), timedelta(hours=12), 10*60],
-            [timedelta(days=3), timedelta(days=1), 30*60],
-            [timedelta(days=7), timedelta(days=3), 4*60*60],
-            [timedelta(days=30), timedelta(days=7), 1*24*60*60],
+            [timedelta(days=3), timedelta(minutes=15), 30*60],
+            [timedelta(days=7), timedelta(days=3), 1*24*60*60],
+            [timedelta(days=30), timedelta(days=7), 30*24*60*60],
             [timedelta(days=10*365), timedelta(days=30), 30*24*60*60]
         ]
 
@@ -226,10 +225,13 @@ class App:
             list: _description_
         """
         videos = []
+        self.check_api_requests_left()
         response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken='')
         while True:
-            if 'item' in response:
+            if 'items' in response:
                 for video in response['items']:
+                    if not self.is_video_upload(video):
+                        continue
                     try:
                         videos.append(video)
                     except:
@@ -237,6 +239,7 @@ class App:
 
                 try:
                     nextPageToken = response['nextPageToken']
+                    self.check_api_requests_left()
                     response = self.request_youtube_channel_videos(channel_id=channel_id, nextPageToken=nextPageToken)
 
                 except KeyError:
@@ -258,6 +261,7 @@ class App:
         Returns:
             dict: _description_
         """
+        self.__number_of_api_requests_left = self.__number_of_api_requests_left - 1
         request = self.__youtube.activities().list(
             part = "snippet,contentDetails",
             channelId = channel_id,
@@ -290,6 +294,21 @@ class App:
         if type(res) == type(None):
             return True
         if len(res) == 0:
+            return True
+        return False
+
+
+
+    def is_video_upload(self, video: dict) -> bool:
+        """_summary_
+
+        Args:
+            video (dict): _description_
+
+        Returns:
+            bool: _description_
+        """
+        if video['snippet']['type'] == 'upload':
             return True
         return False
 
@@ -339,6 +358,16 @@ class App:
 
 
 
+    def check_api_requests_left(self) -> None:
+        if self.__number_of_api_requests_left == 0:
+            print('{} no token requests left '.format(datetime.now()))
+            exit(0)
+        elif self.__number_of_api_requests_left % 100 == 0:
+            print('{} token requests left {}'.format(datetime.now(), self.__number_of_api_requests_left))
+            
+
+
+
     def fetch_comments(self, video_id: str) -> list:
         """_summary_
 
@@ -351,9 +380,10 @@ class App:
         comments = []
         
         try:
+            self.check_api_requests_left()
             response = self.request_youtube_video_comment(video_id=video_id, nextPageToken='')
         except googleapiclient.errors.HttpError:
-            print('{} error request_youtube_video_comment @video={}'.format(datetime.now(), video_id))
+            print('{} error request_youtube_video_comment @video {}'.format(datetime.now(), video_id))
             return comments
         except:
             # if e.g. comments are disabled
@@ -375,6 +405,7 @@ class App:
                 break 
             
             try:
+                self.check_api_requests_left()
                 response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
             except googleapiclient.errors.HttpError:
                 print('{} error request_youtube_video_comment @video={}'.format(datetime.now(), video_id))
@@ -395,6 +426,7 @@ class App:
         Returns:
             dict: _description_
         """
+        self.__number_of_api_requests_left = self.__number_of_api_requests_left - 1
         request = self.__youtube.commentThreads().list(
             part = "snippet,replies",
             videoId = video_id,
@@ -594,7 +626,11 @@ class App:
         if 'parentId' in snippet:
             parentId = snippet['parentId']
 
-        self.__cursor.execute(query, ( snippet['authorChannelId']['value'], 
+        authorChannelId = ''
+        if 'authorChannelId' in snippet:
+            parentId = snippet['authorChannelId']['value']
+
+        self.__cursor.execute(query, ( authorChannelId, 
                                         snippet['authorDisplayName'], 
                                         parentId, 
                                         publishedAt, 
@@ -632,16 +668,16 @@ class App:
                     videos = self.fetch_videos(channel_id)
                     for video in videos:
                         video_id = self.get_video_id_from_fetch(video)
-                        if not type(video_id) == type(str) and not len(video_id) > 0:
-                            continue
+                        #if not type(video_id) == type(str) and not len(video_id) > 0:
+                        #    continue
                         if self.is_video_new(video_id):
                             self.insert_video(video)
-                            print('{} new video added'.format(datetime.now()))
+                            print('{} new video added: {}'.format(datetime.now(), video_id))
                         else:
                             self.update_video(video)
                     self.update_channel_last_time_fetched(channel_id)
                     self.__connection.commit()
-                    if datetime.now() - last_time_load_csv > timedelta(minutes=15):
+                    if datetime.now() - last_time_load_csv > timedelta(minutes=5):
                         break
                 
 
@@ -675,7 +711,7 @@ class App:
 
                     self.update_video_last_time_fetched(video_id)
                     self.__connection.commit()
-                    if datetime.now() - last_time_load_csv > timedelta(minutes=15):
+                    if datetime.now() - last_time_load_csv > timedelta(minutes=30):
                         break
 
         except KeyboardInterrupt:
