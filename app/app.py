@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import googleapiclient.discovery
 import json
 import os
+import sys
 
 
 
@@ -359,12 +360,13 @@ class App:
 
 
     def check_api_requests_left(self) -> None:
+        """_summary_
+        """
         if self.__number_of_api_requests_left == 0:
             print('{} no token requests left '.format(datetime.now()))
-            exit(0)
-        elif self.__number_of_api_requests_left % 100 == 0:
+            os._exit(0)
+        if self.__number_of_api_requests_left % 100 == 0:
             print('{} token requests left {}'.format(datetime.now(), self.__number_of_api_requests_left))
-            
 
 
 
