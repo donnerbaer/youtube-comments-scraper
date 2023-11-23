@@ -83,13 +83,50 @@ class App:
 
 
 
+    def get_all_video_files(self) -> list[str]:
+        """_summary_
+
+        Returns:
+            list[str]: _description_
+        """
+        files_in_dir = os.listdir(self.__config['DATA']['IMPORT_VIDEOS_PATH'])
+        files = []
+        for file in files_in_dir:
+            if '.csv' in file:
+                files.append(file)
+        return files
+
+
+
     def load_videos(self) -> None:  # TODO:
-        pass
+        """_summary_
+        """
+        files:list = self.get_all_video_files()
+        for file_name in files:
+            file = open(self.__config['DATA']['IMPORT_VIDEOS_PATH'] + file_name,'r')
+            self.process_video_files(file)
+            self.__connection.commit()
+            file.close()
 
 
 
     def process_video_files(self, file:object) -> None:  # TODO:
-        pass
+        """_summary_
+
+        Args:
+            file (str): _description_
+        """
+        file.readline() # header
+        for line in file.readlines():
+            line = line.replace('\n','')
+            data = line.split(',')
+
+            if data[0] == '':
+                continue
+
+            if self.is_video_new(data[0]):
+                query = '''INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, description, channel_id) VALUES (?, ?, ?, ?, ?, ?)'''
+                self.__cursor.execute(query, data)
 
 
 
@@ -385,11 +422,11 @@ class App:
             self.check_api_requests_left()
             response = self.request_youtube_video_comment(video_id=video_id, nextPageToken='')
         except googleapiclient.errors.HttpError:
-            print('{} error request_youtube_video_comment @video {}'.format(datetime.now(), video_id))
+            print('{} comments disabled @video_id {}'.format(datetime.now(), video_id))
             return comments
         except:
             # if e.g. comments are disabled
-            print('{} error fetching comments @video={}'.format(datetime.now(), video_id))
+            print('{} error api_key: tried fetching @video_id {}'.format(datetime.now(), video_id))
             self.update_video_last_time_fetched(video_id)
             return comments
         
@@ -410,7 +447,11 @@ class App:
                 self.check_api_requests_left()
                 response = self.request_youtube_video_comment(video_id=video_id, nextPageToken=nextPageToken)
             except googleapiclient.errors.HttpError:
-                print('{} error request_youtube_video_comment @video={}'.format(datetime.now(), video_id))
+                print('{} comments disabled @video_id {}'.format(datetime.now(), video_id))
+                return comments
+            except:
+                # if e.g. comments are disabled
+                print('{} error api_key: tried fetching @video_id {}'.format(datetime.now(), video_id))
                 self.update_video_last_time_fetched(video_id)
                 return comments
             
