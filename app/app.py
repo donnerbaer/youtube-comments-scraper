@@ -15,7 +15,8 @@ class App:
     """
 
     scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
-    __number_of_api_requests_left = 10000
+    __number_of_api_requests_left = 10_000
+    
 
     def __init__(self, config: configparser.ConfigParser) -> None:
         """_summary_
@@ -227,7 +228,7 @@ class App:
         deltas = [
             [timedelta(days=3), timedelta(minutes=15), 30*60],
             [timedelta(days=7), timedelta(days=3), 1*24*60*60],
-            [timedelta(days=30), timedelta(days=7), 30*24*60*60],
+            [timedelta(days=30), timedelta(days=7), 7*24*60*60],
             [timedelta(days=10*365), timedelta(days=30), 30*24*60*60]
         ]
 
@@ -671,7 +672,7 @@ class App:
 
         authorChannelId = ''
         if 'authorChannelId' in snippet:
-            parentId = snippet['authorChannelId']['value']
+            authorChannelId = snippet['authorChannelId']['value']
 
         self.__cursor.execute(query, ( authorChannelId, 
                                         snippet['authorDisplayName'], 
@@ -737,16 +738,18 @@ class App:
                             comments = []
                             self.update_video_last_time_fetched(video_id)
                             self.__connection.commit()
-                        
-                        comment_id = self.get_comment_id_from_fetch(comment)
-                        if self.is_comment_new(comment_id):
-                            self.insert_comment(comment)
-                        else:
-                            self.update_comment(comment)
+                            continue
+
+                        if 'snippet' in comment:
+                            comment_id = comment['snippet']['topLevelComment']['id']
+                            if self.is_comment_new(comment_id):
+                                self.insert_comment(comment)
+                            else:
+                                self.update_comment(comment)
 
                         if 'replies' in comment:
                             for reply in comment['replies']['comments']:
-                                reply_id = self.get_comment_id_from_fetch(comment)
+                                reply_id = reply['id']
                                 if self.is_comment_new(reply_id):
                                     self.insert_comment(reply)
                                 else:
@@ -754,7 +757,7 @@ class App:
 
                     self.update_video_last_time_fetched(video_id)
                     self.__connection.commit()
-                    if datetime.now() - last_time_load_csv > timedelta(minutes=30):
+                    if datetime.now() - last_time_load_csv > timedelta(minutes=120):
                         break
 
         except KeyboardInterrupt:
