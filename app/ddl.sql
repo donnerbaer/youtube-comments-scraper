@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS yt_comment (
     parentId TEXT,
     publishedAt TEXT,
     updatedAt TEXT,
-    textOriginal INTEGER,
+    textOriginal TEXT,
     likecount INTEGER,
-    totalReplyCount TEXT,
+    totalReplyCount INTEGER,
     last_time_fetched TEXT,
     video_id TEXT,
     PRIMARY KEY(id)
