@@ -410,6 +410,7 @@ class App:
             if self.__number_of_api_requests_left == 0:
                 print('{} no token requests left '.format(datetime.now()))
                 self.__connection.commit()
+                print(f"Tokens left: {self.__number_of_api_requests_left}")
                 os._exit(0)
             if self.__number_of_api_requests_left % 100 == 0:
                 print('{} token requests left {}'.format(datetime.now(), self.__number_of_api_requests_left))
@@ -769,6 +770,7 @@ class App:
                         break
 
         except KeyboardInterrupt:
+            print(f"Tokens left: {self.__number_of_api_requests_left}")
             self.__close_database()
             exit(0)
 
