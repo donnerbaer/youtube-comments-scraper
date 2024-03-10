@@ -15,13 +15,18 @@ class App:
     """
 
     scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
-    __number_of_api_requests_left = 10_000
     
 
     def __init__(self, config: configparser.ConfigParser) -> None:
         """_summary_
         """
         self.__config = config
+
+        try:
+            self.__number_of_api_requests_left = (int)(self.__config['YOUTUBE']['NUMBER_OF_TOKENS'])
+        except:
+            print("NUMBER_OF_TOKENS type problem! NUMBER_OF_TOKENS is set to 10_000")
+            self.__number_of_api_requests_left = 10_000
 
         api_key = self.__config['YOUTUBE']['API_SECRET']
         api_service_name = "youtube"
@@ -135,6 +140,7 @@ class App:
     def __close_database(self) -> None:
         """ close the cursor and the connection of the database
         """
+        self.__connection.commit()
         self.__cursor.close()
         self.__connection.close()
 
@@ -400,11 +406,13 @@ class App:
     def check_api_requests_left(self) -> None:
         """_summary_
         """
-        if self.__number_of_api_requests_left == 0:
-            print('{} no token requests left '.format(datetime.now()))
-            os._exit(0)
-        if self.__number_of_api_requests_left % 100 == 0:
-            print('{} token requests left {}'.format(datetime.now(), self.__number_of_api_requests_left))
+        if self.__number_of_api_requests_left >= 0:
+            if self.__number_of_api_requests_left == 0:
+                print('{} no token requests left '.format(datetime.now()))
+                self.__connection.commit()
+                os._exit(0)
+            if self.__number_of_api_requests_left % 100 == 0:
+                print('{} token requests left {}'.format(datetime.now(), self.__number_of_api_requests_left))
 
 
 
