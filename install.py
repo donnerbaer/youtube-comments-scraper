@@ -91,7 +91,7 @@ class Install:
         except:
             print(f'creating directory failed')
 
-        file_template = open('template/channels.csv','r')
+        file_template = open('template/videos.csv','r')
         file = open(self.__config['DATA']['IMPORT_VIDEOS_PATH'] + 'videos.csv', 'w')
         file.write(file_template.read())
         file.close()
