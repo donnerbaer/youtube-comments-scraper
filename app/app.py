@@ -1,10 +1,8 @@
+import os
 import configparser
 import sqlite3
 from datetime import datetime, timedelta
 import googleapiclient.discovery
-import json
-import os
-import sys
 
 
 class App:
@@ -36,7 +34,7 @@ class App:
             self.__number_of_api_requests_left = int(
                 self.__config["YOUTUBE"]["NUMBER_OF_TOKENS"]
             )
-        except:
+        except Exception:
             print("NUMBER_OF_TOKENS type problem! NUMBER_OF_TOKENS is set to 10_000")
             self.__number_of_api_requests_left = 10_000
 
@@ -82,7 +80,11 @@ class App:
         """
         files = self.get_all_channel_files()
         for file_name in files:
-            file = open(self.__config["DATA"]["IMPORT_CHANNELS_PATH"] + file_name, "r")
+            file = open(
+                self.__config["DATA"]["IMPORT_CHANNELS_PATH"] + file_name,
+                "r",
+                encoding="utf-8",
+            )
             self.process_channel_files(file)
             self.__connection.commit()
             file.close()
@@ -90,7 +92,8 @@ class App:
     def process_channel_files(self, file: object) -> None:
         """Process the channel files.
 
-        This method reads the contents of a file, skips the header line, and processes each line of data.
+        This method reads the contents of a file, skips the header line, 
+            and processes each line of data.
         If the channel is new, it inserts the channel data.
 
         Args:
@@ -134,7 +137,11 @@ class App:
         """
         files: list = self.get_all_video_files()
         for file_name in files:
-            file = open(self.__config["DATA"]["IMPORT_VIDEOS_PATH"] + file_name, "r")
+            file = open(
+                self.__config["DATA"]["IMPORT_VIDEOS_PATH"] + file_name,
+                "r",
+                encoding="utf-8",
+            )
             self.process_video_files(file)
             self.__connection.commit()
             file.close()
@@ -157,7 +164,17 @@ class App:
                 continue
 
             if self.is_video_new(data[0]):
-                query = """INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, description, channel_id) VALUES (?, ?, ?, ?, ?, ?)"""
+                query = """INSERT INTO yt_video
+                            (
+                                id,
+                                title,
+                                publishedAt,
+                                last_time_fetched,
+                                description,
+                                channel_id
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """
                 self.__cursor.execute(query, data)
 
     def __close_database(self) -> None:
@@ -180,11 +197,11 @@ class App:
             list[str]: A list of channel IDs.
         """
         if self.__config["CHANNEL"]["TIME_SINCE_LAST_VIDEO_FETCH"].isdigit():
-            TIME_SINCE_LAST_VIDEO_FETCH = (int)(
+            time_since_last_video_fetch = int(
                 self.__config["CHANNEL"]["TIME_SINCE_LAST_VIDEO_FETCH"]
             )
         else:
-            TIME_SINCE_LAST_VIDEO_FETCH = 900
+            time_since_last_video_fetch = 900
 
         query = """SELECT channel_id
                     FROM yt_channel 
@@ -194,7 +211,7 @@ class App:
                         last_time_fetched = ""
                 """
         result = self.__cursor.execute(
-            query, (datetime.now(), TIME_SINCE_LAST_VIDEO_FETCH)
+            query, (datetime.now(), time_since_last_video_fetch)
         )
         channels = []
         for channel in result.fetchall():
@@ -217,7 +234,7 @@ class App:
 
         result = self.__cursor.execute(query, (channel_id,))
         res = result.fetchone()
-        if type(res) == type(None):
+        if res is None or len(res) == 0:
             return True
         if len(res) == 0:
             return True
@@ -234,9 +251,17 @@ class App:
                     - channelTitle: The title of the channel.
                     - last_time_fetched: The last time the channel was fetched.
                     - about: Information about the channel.
-                If a list is provided, it should contain the values in the same order as mentioned above.
+                If a list is provided, it should contain the values in the same order 
+                    as mentioned above.
         """
-        query = """INSERT INTO yt_channel (channel_id, person, channelTitle, last_time_fetched, about) 
+        query = """INSERT INTO yt_channel
+                    (
+                        channel_id,
+                        person,
+                        channelTitle,
+                        last_time_fetched,
+                        about
+                    )
                     VALUES (?, ?, ?, ?, ?);
                 """
         self.__cursor.execute(query, channel)
@@ -301,7 +326,7 @@ class App:
         videos = []
         self.check_api_requests_left()
         response = self.request_youtube_channel_videos(
-            channel_id=channel_id, nextPageToken=""
+            channel_id=channel_id, next_page_token=""
         )
         while True:
             if "items" in response:
@@ -311,10 +336,10 @@ class App:
                     videos.append(video)
 
                 try:
-                    nextPageToken = response["nextPageToken"]
+                    next_page_token = response["nextPageToken"]
                     self.check_api_requests_left()
                     response = self.request_youtube_channel_videos(
-                        channel_id=channel_id, nextPageToken=nextPageToken
+                        channel_id=channel_id, next_page_token=next_page_token
                     )
 
                 except KeyError:
@@ -325,30 +350,31 @@ class App:
         return videos
 
     def request_youtube_channel_videos(
-        self, channel_id: str, nextPageToken: str
+        self, channel_id: str, next_page_token: str
     ) -> dict:
         """Request YouTube channel videos.
 
-        This method sends a request to the YouTube API to retrieve channel videos based on the provided channel ID and next page token.
+        This method sends a request to the YouTube API to retrieve channel videos
+        based on the provided channel ID and next page token.
 
         Args:
             channel_id (str): The ID of the YouTube channel.
-            nextPageToken (str): The token for the next page of results.
+            next_page_token (str): The token for the next page of results.
 
         Returns:
             dict: A dictionary containing the response from the YouTube API.
 
         """
-        self.__number_of_api_requests_left = self.__number_of_api_requests_left - 1
+        self.__number_of_api_requests_left -= 1
         request = self.__youtube.activities().list(
             part="snippet,contentDetails",
             channelId=channel_id,
             maxResults=500,
-            pageToken=nextPageToken,
+            pageToken=next_page_token,
         )
         try:
             return request.execute()
-        except:
+        except Exception:
             return {}
 
     def is_video_new(self, video_id: str) -> bool:
@@ -360,14 +386,14 @@ class App:
         Returns:
             bool: True if the video is new, False otherwise.
         """
-        query = """SELECT id 
+        query = """SELECT id
                     FROM yt_video
                     WHERE id = ?
                 """
 
         result = self.__cursor.execute(query, (video_id,))
         res = result.fetchone()
-        if type(res) == type(None):
+        if res is None or len(res) == 0:
             return True
         if len(res) == 0:
             return True
@@ -398,16 +424,24 @@ class App:
         """
         video_id = self.get_video_id_from_fetch(video)
         snippet = video["snippet"]
-        query = """INSERT INTO yt_video (id, title, publishedAt, last_time_fetched, description, channel_id) 
+        query = """INSERT INTO yt_video
+                    (
+                        id, 
+                        title, 
+                        publishedAt, 
+                        last_time_fetched, 
+                        description, 
+                        channel_id
+                    ) 
                     VALUES (?, ?, ?, ?, ?, ?);
                 """
-        publishedAt = snippet["publishedAt"][:19] + ".000000"
+        published_at = snippet["publishedAt"][:19] + ".000000"
         self.__cursor.execute(
             query,
             (
                 video_id,
                 snippet["title"],
-                publishedAt,
+                published_at,
                 "",
                 snippet["description"],
                 snippet["channelId"],
@@ -441,24 +475,25 @@ class App:
     def check_api_requests_left(self) -> None:
         """Check the number of API requests left and take appropriate actions.
 
-        This method checks the value of `self.__number_of_api_requests_left` and performs the following actions:
-        - If the number of requests left is 0, it prints a message, commits the connection, and exits the program.
-        - If the number of requests left is a multiple of 100, it prints a message with the current timestamp and the number of requests left.
+        This method checks the value of `self.__number_of_api_requests_left` and
+        performs the following actions:
+        - If the number of requests left is 0, it prints a message, commits the
+        connection, and exits the program.
+        - If the number of requests left is a multiple of 100, it prints a message
+        with the current timestamp and the number of requests left.
 
         Returns:
             None
         """
         if self.__number_of_api_requests_left >= 0:
             if self.__number_of_api_requests_left == 0:
-                print("{} no token requests left ".format(datetime.now()))
+                print(f"{datetime.now()} no token requests left")
                 self.__connection.commit()
                 print(f"Tokens left: {self.__number_of_api_requests_left}")
                 os._exit(0)
             if self.__number_of_api_requests_left % 100 == 0:
                 print(
-                    "{} token requests left {}".format(
-                        datetime.now(), self.__number_of_api_requests_left
-                    )
+                    f"{datetime.now()} token requests left {self.__number_of_api_requests_left}"
                 )
 
     def fetch_comments(self, video_id: str) -> list:
@@ -476,14 +511,16 @@ class App:
         try:
             self.check_api_requests_left()
             response = self.request_youtube_video_comment(
-                video_id=video_id, nextPageToken=""
+                video_id=video_id, next_page_token=""
             )
         except googleapiclient.errors.HttpError:
-            print("{} comments disabled @video_id {}".format(datetime.now(), video_id))
+            print(f"{datetime.now()} comments disabled @video_id {video_id}")
             return comments
         except Exception:
             # if e.g. comments are disabled
-            print(f"{datetime.now()} error api_key: tried fetching @video_id {video_id}")
+            print(
+                f"{datetime.now()} error api_key: tried fetching @video_id {video_id}"
+            )
             self.update_video_last_time_fetched(video_id)
             return comments
 
@@ -496,29 +533,31 @@ class App:
                     continue
 
             try:
-                nextPageToken = response["nextPageToken"]
+                next_page_token = response["nextPageToken"]
             except KeyError:
                 break
 
             try:
                 self.check_api_requests_left()
                 response = self.request_youtube_video_comment(
-                    video_id=video_id, nextPageToken=nextPageToken
+                    video_id=video_id, next_page_token=next_page_token
                 )
             except googleapiclient.errors.HttpError:
-                print(
-                    "{} comments disabled @video_id {}".format(datetime.now(), video_id)
-                )
+                print(f"{datetime.now()} comments disabled @video_id {video_id}")
                 return comments
             except Exception:
                 # if e.g. comments are disabled
-                print(f"{datetime.now()} error api_key: tried fetching @video_id {video_id}")
+                print(
+                    f"{datetime.now()} error api_key: tried fetching @video_id {video_id}"
+                )
                 self.update_video_last_time_fetched(video_id)
                 return comments
 
         return comments
 
-    def request_youtube_video_comment(self, video_id: str, nextPageToken: str) -> dict:
+    def request_youtube_video_comment(
+        self, video_id: str, next_page_token: str
+    ) -> dict:
         """Request YouTube video comments.
 
         This method sends a request to the YouTube API to retrieve comments for a specific video.
@@ -535,7 +574,7 @@ class App:
             part="snippet,replies",
             videoId=video_id,
             maxResults=500,
-            pageToken=nextPageToken,
+            pageToken=next_page_token,
         )
         return request.execute()
 
@@ -578,12 +617,12 @@ class App:
                         channel_id = ?
                     WHERE id = ?
         """
-        publishedAt = snippet["publishedAt"][:19] + ".000000"
+        published_at = snippet["publishedAt"][:19] + ".000000"
         self.__cursor.execute(
             query,
             (
                 snippet["title"],
-                publishedAt,
+                published_at,
                 snippet["description"],
                 snippet["channelId"],
                 video_id,
@@ -606,33 +645,33 @@ class App:
             snippet = comment["snippet"]
             id = comment["id"]
 
-        publishedAt = snippet["publishedAt"][:19] + ".000000"
-        updatedAt = snippet["updatedAt"][:19] + ".000000"
+        published_at = snippet["publishedAt"][:19] + ".000000"
+        updated_at = snippet["updatedAt"][:19] + ".000000"
         if "totalReplyCount" not in snippet:
-            totalReplyCount = 0
+            total_reply_count = 0
         else:
-            totalReplyCount = snippet["totalReplyCount"]
+            total_reply_count = snippet["totalReplyCount"]
 
         if "parentId" not in snippet:
-            parentId = ""
+            parent_id = ""
         else:
-            parentId = snippet["parentId"]
+            parent_id = snippet["parentId"]
 
         try:
-            authorChannelId = snippet["authorChannelId"]["value"]
+            author_channel_id = snippet["authorChannelId"]["value"]
         except KeyError:
-            authorChannelId = ""
+            author_channel_id = ""
 
         attributes = [
             id,
-            authorChannelId,
+            author_channel_id,
             snippet["authorDisplayName"],
-            parentId,
-            publishedAt,
-            updatedAt,
+            parent_id,
+            published_at,
+            updated_at,
             snippet["textOriginal"],
             snippet["likeCount"],
-            totalReplyCount,
+            total_reply_count,
             datetime.now(),
             snippet["videoId"],
         ]
@@ -759,9 +798,12 @@ class App:
     def main(self):
         """
         This method is the main entry point of the application.
-        It loads channels and videos, and then continuously processes the channels and videos.
-        It fetches videos for each channel, checks if the video is new, and inserts or updates it accordingly.
-        It also fetches comments for each video, checks if the comment is new, and inserts or updates it accordingly.
+        It loads channels and videos, and then continuously processes the channels 
+            and videos.
+        It fetches videos for each channel, checks if the video is new, and inserts 
+            or updates it accordingly.
+        It also fetches comments for each video, checks if the comment is new, and 
+            inserts or updates it accordingly.
         The process continues until interrupted by the user.
         """
         self.load_channels()
@@ -774,12 +816,12 @@ class App:
                     self.load_channels()
                     self.load_videos()
                     last_time_load_csv = datetime.now()
-                    print("{} csv loaded".format(datetime.now()))
+                    print(f"{datetime.now()} csv loaded")
 
                 # process channels
                 channel_ids = self.get_channels()
                 for channel_id in channel_ids:
-                    print("{} process channel: {}".format(datetime.now(), channel_id))
+                    print(f"{datetime.now()} process channel: {channel_id}")
                     videos = self.fetch_videos(channel_id)
                     for video in videos:
                         video_id = self.get_video_id_from_fetch(video)
@@ -787,11 +829,7 @@ class App:
                         #    continue
                         if self.is_video_new(video_id):
                             self.insert_video(video)
-                            print(
-                                "{} new video added: {}".format(
-                                    datetime.now(), video_id
-                                )
-                            )
+                            print(f"{datetime.now()} new video added: {video_id}")
                         else:
                             self.update_video(video)
                     self.update_channel_last_time_fetched(channel_id)
@@ -802,7 +840,7 @@ class App:
                 # process videos
                 video_ids = self.get_videos()
                 for video_id in video_ids:
-                    print("{} process video: {}".format(datetime.now(), video_id))
+                    print(f"{datetime.now()} process video: {video_id}")
                     comments = self.fetch_comments(video_id)
 
                     for comment in comments:
