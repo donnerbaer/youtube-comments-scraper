@@ -4,19 +4,29 @@ from configparser import ConfigParser
 
 
 class App:
-    """_summary_
+    """A class representing the main application.
+
+    This class initializes the application and runs it.
+
+    Attributes:
+        __config (ConfigParser): The configuration parser object.
+
     """
 
     def __init__(self) -> None:
-        """_summary_
+        """Initialize the App class.
+
+        Reads the configuration file.
+
         """
         self.__config = ConfigParser()
         self.__config.read('config.ini')
-        
-
 
     def run(self) -> None:
-        """_summary_
+        """Run the application.
+
+        Calls the main method of the app module.
+
         """
         app.App(self.__config).main()
         
