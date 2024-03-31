@@ -92,7 +92,7 @@ class App:
     def process_channel_files(self, file: object) -> None:
         """Process the channel files.
 
-        This method reads the contents of a file, skips the header line, 
+        This method reads the contents of a file, skips the header line,
             and processes each line of data.
         If the channel is new, it inserts the channel data.
 
@@ -251,7 +251,7 @@ class App:
                     - channelTitle: The title of the channel.
                     - last_time_fetched: The last time the channel was fetched.
                     - about: Information about the channel.
-                If a list is provided, it should contain the values in the same order 
+                If a list is provided, it should contain the values in the same order
                     as mentioned above.
         """
         query = """INSERT INTO yt_channel
@@ -798,11 +798,11 @@ class App:
     def main(self):
         """
         This method is the main entry point of the application.
-        It loads channels and videos, and then continuously processes the channels 
+        It loads channels and videos, and then continuously processes the channels
             and videos.
-        It fetches videos for each channel, checks if the video is new, and inserts 
+        It fetches videos for each channel, checks if the video is new, and inserts
             or updates it accordingly.
-        It also fetches comments for each video, checks if the comment is new, and 
+        It also fetches comments for each video, checks if the comment is new, and
             inserts or updates it accordingly.
         The process continues until interrupted by the user.
         """
